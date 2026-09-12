@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF' >&2
+usage: six-o [--output PATH] command [args...]
+
+  --output PATH   Write stacktraces to PATH (default: -, stderr).
+                  Also set via SIXO_OUTPUT.
+EOF
+  exit 2
+}
+
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+default_preload="${script_dir}/../build/six-o.so"
+preload=${SIXO_PRELOAD:-$default_preload}
+output=${SIXO_OUTPUT:--}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --output)
+      [[ $# -ge 2 ]] || usage
+      output=$2
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "six-o: unknown option: $1" >&2
+      usage
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+[[ $# -ge 1 ]] || usage
+
+if [[ ! -f "$preload" ]]; then
+  echo "six-o: preload library not found: $preload" >&2
+  echo "six-o: build with 'make' or set SIXO_PRELOAD" >&2
+  exit 1
+fi
+
+export SIXO_OUTPUT="$output"
+export LD_PRELOAD="${preload}${LD_PRELOAD:+:$LD_PRELOAD}"
+exec "$@"
