@@ -7,7 +7,17 @@
 }
 
 [[gnu::noinline]] void sixo_smoke_abort_site() {
-  std::abort();
+  // Call via volatile pointer so the compiler keeps a post-call IP inside
+  // this function for backtraces (std::abort is noreturn).
+  void (*volatile abort_fn)() = std::abort;
+  abort_fn();
+  volatile int keep = 0;
+  (void)keep;
+}
+
+[[gnu::noinline]] void sixo_smoke_segfault_site() {
+  volatile int* p = nullptr;
+  *p = 42;
 }
 
 int main(int argc, char** argv) {
@@ -26,6 +36,10 @@ int main(int argc, char** argv) {
 
   if (std::strcmp(argv[1], "abort") == 0) {
     sixo_smoke_abort_site();
+  }
+
+  if (std::strcmp(argv[1], "segfault") == 0) {
+    sixo_smoke_segfault_site();
   }
 
   return 2;

@@ -2,24 +2,27 @@
 
 Six-o (pronounced sy-cho, like psycho, but no 'p') is a simple and lightweight tool for debugging Linux C++ applications.
 
-At it's core it is a dynamic library, which can be LD_PRELOAD-ed when running the target program.
-Six-o will then intercept calls to functions `cxa_throw` or `abort` and print the stacktrace at the moment of the call to stderr or a given file.
+It has two parts:
+
+- a **consumer** (`six-o`) that runs your program and prints symbolized stacktraces
+- a **producer** (`six-o.so`) that is `LD_PRELOAD`-ed into the target by the consumer
+
+The producer intercepts `__cxa_throw` and selected fatal signals, captures a PC backtrace, and sends it to the consumer over a pipe. The consumer resolves addresses with `llvm-symbolizer` (or `addr2line` as a fallback) and writes the result to stderr or a file.
 
 ## Running
 
-You can LD_PRELOAD six-o manually:
-
 ```sh
-SIXO_OUTPUT=stacktraces.log LD_PRELOAD=six-o.so app
+make
+./build/six-o --output stacktraces.log ./your_app
 ```
 
-or you can run a shell tool:
-
 ```sh
-six-o --output - app
+./build/six-o --output - --signals SEGV,BUS,ILL,FPE,ABRT ./your_app
 ```
 
-Omitting the output env var or flag is the same as setting it to `-` which means outputting to stderr.
+Omitting `--output` / `SIXO_OUTPUT` is the same as `-` (stderr).
+
+Default `--signals` / `SIXO_SIGNALS` is `SEGV,BUS,ILL,FPE,ABRT`.
 
 ## Origins of the name
 
